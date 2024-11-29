@@ -2,11 +2,11 @@ const https = require('https');
 
 const { packages, GITHUB_TOKEN } = process.env;
 
-const [,, org, version] = process.argv;
+const [,, owner, version] = process.argv;
 
-console.log('inputs', { org, packages, version })
+console.log('inputs', { owner, packages, version })
 
-const request = ({ method, path, data = '' }) => {
+const request = ({ method = 'get', path, data = '' }) => {
   return new Promise((resolve, reject) => {
     console.log(`[${method}] ${path}`)
     const req = https.request({
@@ -40,13 +40,21 @@ const request = ({ method, path, data = '' }) => {
   })
 };
 
+const isUser = (owner) => {
+  return request({ path: `/users/${owner}` }).then(() => true).catch(() => false);
+}
+
+
+
 const deletePackage = async (package) => {
-  if (![org, package, version, GITHUB_TOKEN].every(Boolean)) {
+  if (![owner, package, version, GITHUB_TOKEN].every(Boolean)) {
     console.log('missing parameter, ensure you are passing the version to the script')
     return;
   }
   try {
-    const versions = await request({ method: 'get', path: `/orgs/${org}/packages/npm/${package}/versions?per_page=100` });
+    const namespace = (await isUser(owner)) ? 'users' : 'orgs';
+
+    const versions = await  request({ method: 'get', path: `/${namespace}/${owner}/packages/npm/${package}/versions?per_page=100` });
 
     if (!versions || !Array.isArray(versions)) {
       console.log('error', versions)
@@ -61,7 +69,7 @@ const deletePackage = async (package) => {
 
     await filtered.reduce(async (promise, v) => {
       await promise;
-      return request({ method: 'delete', path: `/orgs/${org}/packages/npm/${package}/versions/${v.id}` });
+      return request({ method: 'delete', path: `/${namespace}/${owner}/packages/npm/${package}/versions/${v.id}` });
     }, Promise.resolve());
   } catch (e) {
     console.error('Could not remove packages', e.message);
