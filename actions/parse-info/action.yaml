@@ -1,0 +1,49 @@
+name: 'Parse Git Information'
+description: 'Parse git information for tags, version, commit message'
+outputs:
+  tag:
+    description: 'latest for master, pr-X for pr instances otherwise undefined'
+    value: ${{ steps.parse.outputs.tag }}
+  version:
+    description: 'Current Version'
+    value: ${{ steps.parse.outputs.version }}
+  branch:
+    description: 'Current Branch'
+    value: ${{ steps.parse.outputs.branch }}
+  message:
+    description: 'Current commit message'
+    value: ${{ steps.parse.outputs.message }}
+  updateType:
+    description: 'Parse commit message to get the release type [pre|major,minot,path,release]'
+    value: ${{ steps.parse.outputs.updateType }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Parse GIT Information'
+      shell: bash
+      id: parse
+      run: |
+        declare -A TAGS_MAP
+        TAGS_MAP=(["master"]="latest")
+        VERSION=$(git describe --tags --always)
+        BRANCH=$(git rev-parse --abbrev-ref HEAD | sed -r "s/\//\-/g")
+        TAG=${TAGS_MAP[$BRANCH]}
+        if [ -d $TAG ]; then
+          TAG=pr-${{ github.event.number }}
+        fi
+        commit_message=$(git log --format=%B -n 1 ${{ github.sha }})
+        echo "MESSAGE<<EOF" >> $GITHUB_ENV
+        echo "${commit_message}" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+        echo "message=$(echo \"${commit_message}\")" >> $GITHUB_OUTPUT
+        regex='\[((pre)?(minor|patch|major|release))\]'
+        if [[ $commit_message =~ $regex ]]; then
+          echo "updateType=$(echo ${BASH_REMATCH[1]})" >> $GITHUB_OUTPUT
+        fi
+        echo "----- output ------"
+        cat $GITHUB_OUTPUT
+        echo "-------------------"

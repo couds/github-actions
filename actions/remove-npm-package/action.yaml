@@ -1,0 +1,21 @@
+name: Remove Package
+inputs:
+  packages:
+    description: 'String representing the package name or an array of package ["package1","package2"]'
+    required: true
+  version:
+    description: 'Version to remove (exact version of prefix after a "-" for removing prereleases or pr packages)'
+    required: true
+  GITHUB_TOKEN:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+  - name: Remove packages
+    shell: bash
+    env:
+      GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN }}
+      packages: ${{ inputs.packages }}
+    run: |
+      node ${{ github.action_path }}/index.js ${{ github.repository_owner }} ${{ inputs.version }}

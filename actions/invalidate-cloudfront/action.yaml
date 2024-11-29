@@ -1,0 +1,31 @@
+name: 'Invalidate cloudfront cache'
+description: 'Invalidate cloudfront cache, will retry up to 5 times'
+inputs:
+  version:
+    description: 'Version to publish'
+    required: true
+  distribution:
+    description: 'Distribution ID'
+    required: true
+  path:
+    description: 'Path to clear cache'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Deploy to S3
+      shell: bash
+      run: |
+        for i in {1..5}
+        do
+          export INVALIDATION_ID=$(AWS_MAX_ATTEMPTS=5 aws cloudfront create-invalidation --distribution-id ${{ inputs.version }} --paths "${{ inputs.path }}/*" | jq -r '.Invalidation.Id')
+
+          if [ -z ${INVALIDATION_ID} ]
+          then
+              echo "::warning::Cloudfront invalidation failed, retry number $i"
+              sleep 3
+          else
+              echo -e "\033[0;32m=== Success: Cloudfront invalidation number $INVALIDATION_ID\e[0m"
+              break
+          fi
+        done
