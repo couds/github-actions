@@ -8,6 +8,7 @@ console.log('inputs', { org, packages, version })
 
 const request = ({ method, path, data = '' }) => {
   return new Promise((resolve, reject) => {
+    console.log(`[${method}] ${path}`)
     const req = https.request({
       method,
       protocol: 'https:',
